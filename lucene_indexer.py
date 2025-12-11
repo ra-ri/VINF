@@ -29,21 +29,22 @@ def index_tv_series(tsv_path, index_dir):
         "producer",
         "publisher",
         "description",
+        "info",
     }
 
     # Numeric fields
     INT_FIELDS = {"year", "episodes"}
     FLOAT_FIELDS = {"score"}
 
-    # Fields stored only as STORE (without indexing)
+    # Fields stored only (without indexing)
     STORE_ONLY_FIELDS = {
         "duration",
-        "info",
         "reception",
         "awards"
     }
 
     with open(tsv_path, newline='', encoding='utf-8') as f:
+        # nacita TSV do slovnikov
         reader = csv.DictReader(f, delimiter='\t')
         doc_count = 0
 
@@ -59,11 +60,12 @@ def index_tv_series(tsv_path, index_dir):
             if country:
                 doc.add(StringField("country", country, Field.Store.YES))
 
-            # All content for fulltext search 
-            all_text_parts = [
-                (v.strip()) for k, v in row.items()
-                if k != "doc_id" and v and v.strip()
-            ]
+            # All content for fulltext search - ZAHŔŇA AJ STORE-ONLY POLIA
+            all_text_parts = []
+            for k, v in row.items():
+                if k != "doc_id" and v and v.strip():
+                    all_text_parts.append(v.strip())
+            
             all_content = " ".join(all_text_parts)
             doc.add(TextField("all_content", all_content, Field.Store.NO))
 
@@ -91,11 +93,11 @@ def index_tv_series(tsv_path, index_dir):
                 except:
                     pass
 
-            # Store-only field
+            # Store-only fields
             for key in STORE_ONLY_FIELDS:
                 value = row.get(key, "")
                 if value and value.strip():
-                    doc.add(StringField(key, value.strip(), Field.Store.YES))
+                    doc.add(StoredField(key, value.strip()))
 
             writer.addDocument(doc)
             doc_count += 1
@@ -105,7 +107,6 @@ def index_tv_series(tsv_path, index_dir):
     directory.close()
 
     print(f"Indexed {doc_count} TV series into '{index_dir}'")
-
 
 
 TSV_PATH = "merged.tsv"
